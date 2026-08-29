@@ -1,0 +1,18 @@
+:root { color: #12314a; background: #eaf3f7; }
+body { margin: 0; font: 16px/1.8 ui-sans-serif, system-ui, 'PingFang SC', sans-serif; background-color: #eaf3f7; background-image: linear-gradient(rgb(70 130 161 / .1) 1px, transparent 1px), linear-gradient(90deg, rgb(70 130 161 / .1) 1px, transparent 1px); background-size: 1.5rem 1.5rem; }
+.folio-document { max-width: 49rem; margin: 2rem auto; padding: 3rem; border: 1px solid #4c8eb4; background: #fafdff; box-shadow: 0 12px 36px rgb(18 49 74 / .12); }
+h1 { margin: 0 0 3rem; padding: 0 0 1.25rem; border-bottom: 4px double #24658d; color: #12314a; font-family: ui-monospace, SFMono-Regular, monospace; font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.12; letter-spacing: -.06em; }
+h1::before { content: 'SYSTEM DOCUMENT / 01'; display: block; margin-bottom: .8rem; color: #4c8eb4; font-size: .62rem; font-weight: 700; letter-spacing: .18em; }
+h2 { margin-top: 3.4rem; padding: .6rem .85rem; border-left: 6px solid #24658d; color: #12314a; background: #e3f1f7; font-size: 1.4rem; line-height: 1.35; }
+h3 { margin-top: 2.3rem; color: #24658d; font-size: 1.1rem; }
+p { margin: 0 0 1.4rem; }
+strong { color: #0d4e73; }
+a { color: #0d6da8; font-weight: 700; }
+blockquote { margin: 2rem 0; padding: 1rem 1.2rem; border: 1px solid #9fc5d9; border-left: 4px solid #24658d; color: #174966; background: #edf8fc; }
+pre { overflow: auto; padding: 1rem 1.2rem; border: 1px solid #1b4f6d; color: #dceff8; background: #12314a; }
+code { font-family: ui-monospace, SFMono-Regular, monospace; }
+:not(pre) > code { padding: .1em .35em; color: #0d4e73; background: #e4f2f8; }
+table { width: 100%; margin: 2rem 0; border-collapse: collapse; font-size: .9em; }
+th, td { padding: .7rem; border: 1px solid #b8d4e2; text-align: left; }
+th { color: #fafdff; background: #24658d; }
+img { max-width: 100%; height: auto; border: 1px solid #4c8eb4; }

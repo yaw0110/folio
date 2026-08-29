@@ -1,0 +1,10 @@
+:root { color: #3a2a25; background: #fbf5e8; }
+body { margin: 0; font: 18px/1.9 Georgia, 'Songti SC', serif; }
+.folio-document { max-width: 40rem; margin: auto; padding: 4.5rem 2.75rem; border-top: .5rem solid #9f5547; }
+h1 { font-size: 2.7rem; line-height: 1.1; letter-spacing: -.04em; }
+h2 { margin-top: 2.5rem; }
+a { color: #9f5547; }
+blockquote { margin: 1.5rem 0; font-style: italic; color: #765b51; }
+pre { overflow: auto; padding: 1rem; background: #f0e4cf; }
+code { font-family: ui-monospace, SFMono-Regular, monospace; }
+img { max-width: 100%; height: auto; }

@@ -1,0 +1,14 @@
+:root { color: #1D3045; background: #fff; }
+body { margin: 0; font: 16px/1.9 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.folio-document { width: 100%; min-height: 100%; margin: 0; padding: 0 10vw 64px; }
+h1 { margin: 0 -10vw 40px; padding: 30px 10vw 28px; color: #fff; background: #1D4ED8; font-size: 30px; line-height: 1.25; letter-spacing: -.03em; }
+h1::before { content: 'DEEP OCEAN · LONGFORM EDITORIAL'; display: block; margin-bottom: 12px; font-size: 10px; font-weight: 700; letter-spacing: .2em; opacity: .82; }
+h2 { margin-top: 38px; padding-bottom: 10px; border-bottom: 2px solid #BFDBFE; color: #1E3A8A; font-size: 21px; line-height: 1.35; }
+h3 { margin-top: 28px; color: #1D4ED8; font-size: 17px; }
+p { margin: 0 0 20px; color: #33475C; }
+a { color: #1D4ED8; font-weight: 600; }
+blockquote { margin: 24px 0; padding: 14px 16px; border-left: 3px solid #1D4ED8; color: #1E3A8A; background: #EFF6FF; }
+pre { overflow: auto; padding: 16px; border-radius: 6px; color: #DBEAFE; background: #1E3A8A; }
+code { font-family: ui-monospace, SFMono-Regular, monospace; }
+:not(pre) > code { padding: .12em .35em; color: #1E3A8A; background: #EFF6FF; }
+img { max-width: 100%; height: auto; border: 1px solid #BFDBFE; border-radius: 6px; }
