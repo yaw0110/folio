@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Folio 流程原型（一次性）</title>
+  <style>
+    :root{font:16px/1.5 system-ui,-apple-system,sans-serif;color:#17202a;background:#f5f7fa}
+    body{max-width:980px;margin:0 auto;padding:32px 20px 60px}
+    h1{margin:0 0 6px;font-size:28px}.intro{color:#52606d;margin:0 0 24px}
+    section{background:#fff;border:1px solid #dfe5ec;border-radius:12px;padding:18px;margin:14px 0}
+    h2{font-size:18px;margin:0 0 12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    label{display:block;font-weight:600;margin:8px 0 4px}textarea,input{box-sizing:border-box;width:100%;padding:9px;border:1px solid #cbd5df;border-radius:7px;font:inherit}
+    textarea{min-height:110px;resize:vertical}.state{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.state div{background:#f5f7fa;border-radius:8px;padding:10px}.state b{display:block;font-size:12px;color:#64748b;margin-bottom:3px}
+    button{border:0;border-radius:7px;padding:9px 12px;background:#2563eb;color:#fff;font:inherit;cursor:pointer;margin:4px 5px 0 0}button.secondary{background:#e7edf5;color:#17202a}button:disabled{opacity:.45;cursor:not-allowed}
+    .notice{margin-top:12px;padding:10px;border-radius:7px;background:#eef5ff;color:#1e40af}.preview{border-left:4px solid #2563eb;padding:10px 14px;background:#fafcff;white-space:pre-wrap}.steps{display:flex;flex-wrap:wrap;gap:6px}.tabbar button{background:#e7edf5;color:#17202a}.tabbar button.active{background:#17202a;color:#fff}.scenario{color:#52606d;margin:8px 0 12px}
+    @media(max-width:700px){.grid,.state{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <h1>Folio 流程原型</h1>
+  <p class="intro"><b>要验证的问题：</b>终端打开一个 Markdown 后，编辑 Markdown/CSS、预览、保存和导出 HTML 的状态边界是否直观？这是一次性原型，不是生产代码。</p>
+
+  <section>
+    <h2>当前状态</h2>
+    <div id="state" class="state"></div>
+    <div id="notice" class="notice"></div>
+  </section>
+
+  <section>
+    <h2>自由操作</h2>
+    <label for="path">Markdown 文件</label>
+    <input id="path" value="article.md">
+    <div>
+      <button data-action="OPEN_FILE">打开文件</button>
+      <button data-action="PREVIEW">预览</button>
+      <button data-action="SAVE">保存 Markdown</button>
+      <button data-action="EXPORT_HTML">导出 HTML</button>
+      <button class="secondary" data-action="RESET">重置</button>
+    </div>
+    <div class="grid">
+      <div><label for="markdown">Markdown 内容</label><textarea id="markdown"># 一篇文章\n\n这是正文。</textarea><button class="secondary" data-action="EDIT_MARKDOWN">应用 Markdown 修改</button></div>
+      <div><label for="css">Template CSS</label><textarea id="css">body { font-family: system-ui; color: #17202a; }</textarea><button class="secondary" data-action="EDIT_CSS">应用 CSS 修改</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>预览结果</h2>
+    <div id="preview" class="preview">还没有预览。</div>
+  </section>
+
+  <section>
+    <h2>引导场景</h2>
+    <div class="tabbar" id="tabs"></div>
+    <p id="scenario" class="scenario"></p>
+    <div id="steps" class="steps"></div>
+  </section>
+
+  <script>
+    // The pure state transition is the part worth carrying into the real app.
+    const initial = () => ({phase:'idle',file:'',markdown:'',css:'',saved:false,previewVersion:0,contentVersion:0,exportedVersion:0,notice:'先打开一个 Markdown 文件。'});
+    let state = initial();
+    const sample = {markdown:'# 一篇文章\n\n这是正文。',css:'body { font-family: system-ui; color: #17202a; }'};
+    function reduce(s, action) {
+      switch(action.type) {
+        case 'OPEN_FILE': return {...s,phase:'editing',file:action.file||'article.md',markdown:sample.markdown,css:sample.css,saved:true,previewVersion:0,contentVersion:1,exportedVersion:0,notice:'文件已打开，可以编辑。'};
+        case 'EDIT_MARKDOWN': return s.phase==='idle'?{...s,notice:'请先打开 Markdown 文件。'}:{...s,phase:'editing',markdown:action.value,contentVersion:s.contentVersion+1,saved:false,notice:'Markdown 已修改，需重新预览并保存。'};
+        case 'EDIT_CSS': return s.phase==='idle'?{...s,notice:'请先打开 Markdown 文件。'}:{...s,phase:'editing',css:action.value,contentVersion:s.contentVersion+1,saved:false,notice:'CSS 已修改，需重新预览。'};
+        case 'PREVIEW': return s.phase==='idle'?{...s,notice:'请先打开 Markdown 文件。'}:{...s,phase:'previewing',previewVersion:s.contentVersion,notice:'预览已更新，预览与导出使用同一版本。'};
+        case 'SAVE': return s.phase==='idle'?{...s,notice:'请先打开 Markdown 文件。'}:{...s,phase:'editing',saved:true,notice:'Markdown 已保存回原文件。'};
+        case 'EXPORT_HTML': return s.phase==='previewing'&&s.previewVersion===s.contentVersion?{...s,phase:'exported',exportedVersion:s.previewVersion,notice:'HTML 已导出。'}:{...s,notice:'请先预览最新修改，再导出 HTML。'};
+        case 'RESET': return initial();
+        default: return s;
+      }
+    }
+    const scenarios = [
+      {name:'正常发布',text:'打开文件，编辑内容，预览后保存并导出。',steps:[['OPEN_FILE','打开 article.md'],['EDIT_MARKDOWN','修改 Markdown'],['PREVIEW','更新预览'],['SAVE','保存文件'],['EXPORT_HTML','导出 HTML']]},
+      {name:'漏掉预览',text:'验证修改后直接导出是否被阻止。',steps:[['OPEN_FILE','打开 article.md'],['EDIT_MARKDOWN','修改 Markdown'],['EXPORT_HTML','尝试直接导出']]},
+      {name:'只改样式',text:'验证 CSS 修改是否会让旧预览失效。',steps:[['OPEN_FILE','打开 article.md'],['PREVIEW','先看初始预览'],['EDIT_CSS','修改 CSS'],['EXPORT_HTML','尝试导出旧预览'],['PREVIEW','更新样式预览'],['EXPORT_HTML','导出新 HTML']]}
+    ];
+    let scenarioIndex = 0, stepIndex = 0;
+    function dispatch(type) {
+      const value = type==='EDIT_MARKDOWN'?document.querySelector('#markdown').value:type==='EDIT_CSS'?document.querySelector('#css').value:undefined;
+      state = reduce(state,{type,value,file:document.querySelector('#path').value});
+      render();
+    }
+    function render() {
+      document.querySelector('#state').innerHTML = [['阶段',state.phase],['文件',state.file||'—'],['Markdown',state.markdown?'已载入':'—'],['CSS',state.css?'已载入':'—'],['已保存',state.saved?'是':'否'],['预览版本',state.previewVersion+'/'+state.contentVersion],['导出版本',state.exportedVersion||'—']].map(x=>`<div><b>${x[0]}</b>${x[1]}</div>`).join('');
+      document.querySelector('#notice').textContent = state.notice;
+      document.querySelector('#preview').textContent = state.previewVersion?`${state.markdown}\n\n[使用当前 CSS 渲染]`:'还没有预览。';
+      document.querySelector('#scenario').textContent = scenarios[scenarioIndex].text;
+      document.querySelector('#tabs').innerHTML = scenarios.map((x,i)=>`<button class="${i===scenarioIndex?'active':''}" data-tab="${i}">${x.name}</button>`).join('');
+      document.querySelector('#steps').innerHTML = scenarios[scenarioIndex].steps.map((x,i)=>`<button class="${i<stepIndex?'secondary':''}" data-step="${i}" ${i!==stepIndex?'disabled':''}>${x[1]}</button>`).join('');
+    }
+    document.addEventListener('click',e=>{
+      if(e.target.dataset.action){dispatch(e.target.dataset.action);return;}
+      if(e.target.dataset.tab){scenarioIndex=+e.target.dataset.tab;stepIndex=0;state=initial();render();return;}
+      if(e.target.dataset.step){dispatch(scenarios[scenarioIndex].steps[+e.target.dataset.step][0]);stepIndex++;render();}
+    });
+    render();
+  </script>
+</body>
+</html>
