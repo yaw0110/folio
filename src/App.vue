@@ -1,14 +1,17 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { render, renderWeChatDocument } from './render.js'
+import { render } from './render.js'
 
 const templates = ref([])
 const markdown = ref('')
 const name = ref('')
+const documentPath = ref('')
 const documentId = ref(new URLSearchParams(location.search).get('document') ?? '')
+const documentVersion = ref(0)
 const savedMarkdown = ref('')
 const activeTemplate = ref('')
 const currentTemplate = ref(null)
+const exportFormat = ref('html')
 const requestedMode = new URLSearchParams(location.search).get('mode')
 const mode = ref(requestedMode === 'workspace' ? 'workspace' : 'preview')
 const contentVersion = ref(0)
@@ -38,15 +41,16 @@ let pendingHistoryAction = ''
 
 const isDirty = computed(() => markdown.value !== savedMarkdown.value)
 const wordCount = computed(() => markdown.value.trim() ? markdown.value.trim().split(/\s+/u).length : 0)
-const exportLabel = computed(() => currentTemplate.value?.target === 'wechat' ? '导出公众号 HTML' : '导出 HTML')
+const exportLabel = computed(() => exportFormat.value === 'pdf' ? '导出 PDF' : '导出 HTML')
 function refreshPreview() {
   if (!currentTemplate.value) return
   try {
     if (editor.value) activeLine = lineAtSelection()
     previewSyncLockUntil = performance.now() + 200
-    previewHtml.value = currentTemplate.value.target === 'wechat'
-      ? renderWeChatDocument(markdown.value, currentTemplate.value.css, { baseHref: `/api/assets/${encodeURIComponent(documentId.value)}/` })
-      : render(markdown.value, currentTemplate.value.css, { baseHref: `/api/assets/${encodeURIComponent(documentId.value)}/`, interactive: true })
+    previewHtml.value = render(markdown.value, currentTemplate.value.css, {
+      baseHref: `/api/assets/${encodeURIComponent(documentId.value)}/`,
+      interactive: true
+    })
     previewVersion.value = contentVersion.value
   } catch (cause) {
     showToast(cause instanceof Error ? cause.message : '预览无法生成。', 'error')
@@ -251,7 +255,8 @@ function syncDraftWidth() {
 
 async function save() {
   try {
-    await request('/api/document', { method: 'PUT', body: JSON.stringify({ markdown: markdown.value }) })
+    const result = await request('/api/document', { method: 'PUT', body: JSON.stringify({ markdown: markdown.value, version: documentVersion.value }) })
+    documentVersion.value = result.version
     savedMarkdown.value = markdown.value
     showToast('已保存')
   } catch (cause) {
@@ -259,14 +264,19 @@ async function save() {
   }
 }
 
-async function exportHtml() {
+async function exportCurrent() {
   if (!currentTemplate.value || previewVersion.value !== contentVersion.value) return
+  const pdf = exportFormat.value === 'pdf'
   try {
-    await request('/api/export', { method: 'POST', body: JSON.stringify({ markdown: markdown.value, templateId: currentTemplate.value.id, revision: currentTemplate.value.revision, documentId: documentId.value }) })
-    showToast('HTML 已导出')
+    await request(pdf ? '/api/export-pdf' : '/api/export', { method: 'POST', body: JSON.stringify({ markdown: markdown.value, templateId: currentTemplate.value.id, revision: currentTemplate.value.revision, documentId: documentId.value }) })
+    showToast(`${pdf ? 'PDF' : 'HTML'} 已导出`)
   } catch (cause) {
-    showToast(cause instanceof Error ? cause.message : '导出失败。', 'error')
+    showToast(cause instanceof Error ? cause.message : pdf ? 'PDF 导出失败。' : '导出失败。', 'error')
   }
+}
+
+function toggleExportFormat() {
+  exportFormat.value = exportFormat.value === 'pdf' ? 'html' : 'pdf'
 }
 
 async function request(path, options = {}) {
@@ -310,9 +320,11 @@ onMounted(async () => {
     draftHistoryIndex = 0
     draftChange.value = '已载入'
     name.value = document.name
+    documentPath.value = document.path
     documentId.value = document.documentId
+    documentVersion.value = document.version
     templates.value = templateList.templates
-    activeTemplate.value = templates.value.find((template) => template.id === 'ocean')?.id ?? templates.value[0]?.id ?? ''
+    activeTemplate.value = templates.value.find((template) => template.id === 'ticket')?.id ?? templates.value[0]?.id ?? ''
     clientId = (await request('/api/clients', { method: 'POST', body: '{}' })).clientId
     heartbeatTimer = setInterval(() => { if (clientId) request(`/api/clients/${encodeURIComponent(clientId)}`, { method: 'POST', body: '{}' }).catch(() => {}) }, 30_000)
   } catch (cause) {
@@ -334,12 +346,15 @@ onBeforeUnmount(() => {
     <header class="topbar">
       <div class="brand"><i />FOLIO</div>
       <div class="document-state">
-        <span>{{ name || '—' }}</span>
+        <span class="document-path" :title="documentPath">{{ documentPath || name || '—' }}</span>
         <span :class="isDirty ? 'dirty' : 'saved'">{{ isDirty ? '未保存' : '已保存' }}</span>
       </div>
       <div class="actions">
         <button class="button quiet" type="button" @click="save" :disabled="!name || !isDirty">保存</button>
-        <button class="button primary" type="button" @click="exportHtml" :disabled="!name || !currentTemplate || previewVersion !== contentVersion">{{ exportLabel }}</button>
+        <div class="export-control">
+          <button class="button primary export-action" type="button" @click="exportCurrent" :disabled="!name || !currentTemplate || previewVersion !== contentVersion">{{ exportLabel }}</button>
+          <button class="export-format-toggle" type="button" aria-label="切换导出格式" :title="`切换为${exportFormat === 'pdf' ? 'HTML' : 'PDF'}`" @click="toggleExportFormat"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3" /></svg></button>
+        </div>
       </div>
     </header>
     <section class="canvas" :class="{ 'preview-only': mode === 'preview' }">
