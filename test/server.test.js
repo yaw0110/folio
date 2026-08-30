@@ -9,7 +9,7 @@ test('document save and HTML export use the opened Markdown path', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'folio-test-'))
   const sourcePath = path.join(directory, 'article.md')
   await writeFile(sourcePath, '# First')
-  const { server } = await createFolioServer()
+  const { server } = await createFolioServer({ pdfWriter: async (_html, outputPath) => writeFile(outputPath, '%PDF-1.4 test', 'utf8') })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const baseUrl = `http://127.0.0.1:${server.address().port}`
   try {
