@@ -120,9 +120,11 @@ npm run dist:mac:pkg
 维护者推送 `v*` 标签后，GitHub Actions 会自动测试、构建 macOS/Windows 安装包并创建 Release：
 
 ```sh
-git tag v0.1.2
-git push origin v0.1.2
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
+
+标签版本必须与 `package.json` 的版本一致。
 
 ## 期望与边界
 
