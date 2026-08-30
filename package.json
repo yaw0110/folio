@@ -11,6 +11,7 @@
     "dist",
     "templates",
     "template-store.js",
+    "pdf-export.js",
     "server.js",
     "src",
     "README.md",
@@ -19,7 +20,11 @@
   "scripts": {
     "prepack": "npm run build",
     "dev": "vite",
+    "dev:desktop": "npm run build && electron .",
     "build": "vite build",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:mac:pkg": "npm run build && electron-builder --mac pkg",
+    "dist:win": "npm run build && electron-builder --win",
     "start": "npm run build && node bin/folio.js",
     "test": "npm run build && node --test"
   },
@@ -29,6 +34,39 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
+    "electron": "^36.3.2",
+    "electron-builder": "^26.0.12",
     "vite": "^6.2.0"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.folio.app",
+    "productName": "Folio",
+    "directories": { "output": "release" },
+    "files": [
+      "dist/**/*",
+      "templates/**/*",
+      "src/render.js",
+      "README.md",
+      "server.js",
+      "template-store.js",
+      "pdf-export.js",
+      "electron/main.cjs",
+      "package.json"
+    ],
+    "win": { "target": "nsis" },
+    "mac": { "target": ["dmg", "pkg"] },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "fileAssociations": [{
+      "ext": "md",
+      "name": "Markdown document",
+      "description": "Folio Markdown document",
+      "role": "Editor"
+    }]
   }
 }

@@ -1,8 +1,16 @@
-:root {
-  --folio-wechat-brand: #b63832;
-  --folio-wechat-ink: #352927;
-  --folio-wechat-muted: #806d69;
-  --folio-wechat-tint: #fff1ed;
-  --folio-wechat-line: #efd0c8;
-  --folio-wechat-paper: #fffdfb;
-}
+:root { color: #2c2522; background: #fffdf9; }
+body { margin: 0; font: 17px/1.9 Georgia, 'Noto Serif SC', 'Songti SC', serif; }
+.folio-document { max-width: 45rem; margin: auto; padding: 3.5rem 2rem 5rem; }
+h1 { margin: 0 0 2.5rem; padding: 0 0 1.5rem; border-bottom: 4px solid #b52d28; color: #2c2522; font-size: clamp(2.4rem, 7vw, 4.25rem); line-height: 1.08; letter-spacing: -.06em; }
+h1::before { content: 'OPINION / FOLIO'; display: block; margin-bottom: 1.2rem; color: #b52d28; font-family: ui-sans-serif, system-ui, sans-serif; font-size: .65rem; font-weight: 800; letter-spacing: .24em; }
+h2 { margin-top: 3.5rem; padding: 0 0 .75rem; border-bottom: 1px solid #decac3; color: #b52d28; font-size: 1.55rem; line-height: 1.35; }
+h3 { margin-top: 2.3rem; color: #2c2522; font-size: 1.15rem; }
+p { margin: 0 0 1.45rem; }
+strong { color: #8c211d; }
+a { color: #b52d28; text-decoration-color: #eab8ad; text-underline-offset: .18em; }
+blockquote { margin: 2rem 0; padding: 1rem 1.25rem; border-left: 4px solid #b52d28; color: #6c3833; background: #fff2ed; font-size: 1.08em; }
+pre { overflow: auto; padding: 1rem; border-radius: .25rem; color: #fcece8; background: #2c2522; }
+code { font-family: ui-monospace, SFMono-Regular, monospace; }
+:not(pre) > code { padding: .12em .35em; color: #8c211d; background: #fff0eb; }
+hr { margin: 3rem 0; border: 0; border-top: 1px solid #decac3; }
+img { max-width: 100%; height: auto; border-radius: .25rem; }

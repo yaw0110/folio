@@ -27,9 +27,8 @@ async function readMetadata(directory, id) {
   if (!/^[a-z0-9-]+$/u.test(id)) throw new Error('Invalid template id.')
   const source = await readFile(path.join(directory, id, 'template.json'), 'utf8')
   const metadata = JSON.parse(source)
-  const target = metadata.target ?? 'html'
-  if (metadata.id !== id || typeof metadata.name !== 'string' || typeof metadata.summary !== 'string' || !['html', 'wechat'].includes(target)) throw new Error(`Invalid template metadata: ${id}`)
-  return { id, name: metadata.name, summary: metadata.summary, target }
+  if (metadata.id !== id || typeof metadata.name !== 'string' || typeof metadata.summary !== 'string') throw new Error(`Invalid template metadata: ${id}`)
+  return { id, name: metadata.name, summary: metadata.summary }
 }
 
 function hash(value) {

@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url'
 import { createFolioServer } from '../server.js'
 
 const sessionPath = path.join(os.tmpdir(), `folio-${process.getuid?.() ?? 'user'}.json`)
+// ponytail: one per-user launch lock; enough while Folio owns a single daemon.
+const launchLockPath = `${sessionPath}.lock`
 const args = process.argv.slice(2)
 
 if (args[0] === 'daemon') await runDaemon(args.slice(1))
@@ -34,7 +36,7 @@ async function openFiles(argv) {
 async function runDaemon(argv) {
   const { idleTimeout } = parseOptions(argv)
   try {
-    const { server } = await createFolioServer(undefined, { idleTimeout, onIdle: () => shutdown() })
+    const { server } = await createFolioServer({ idleTimeout, onIdle: () => shutdown() })
     server.listen(0, '127.0.0.1', async () => {
       const { port } = server.address()
       await writeFile(sessionPath, JSON.stringify({ pid: process.pid, port, idleTimeout }), 'utf8')
@@ -56,17 +58,49 @@ async function runDaemon(argv) {
 async function ensureDaemon(idleTimeout) {
   const existing = await readSession()
   if (existing && await isAlive(existing)) return existing
-  if (existing) await unlink(sessionPath).catch(() => {})
-  const daemonArgs = [fileURLToPath(import.meta.url), 'daemon', Number.isFinite(idleTimeout) ? '--idle-timeout' : '--no-idle-timeout']
-  if (Number.isFinite(idleTimeout)) daemonArgs.push(String(idleTimeout))
-  const child = spawn(process.execPath, daemonArgs, { detached: true, stdio: 'ignore' })
-  child.unref()
+  const ownsLock = await acquireLaunchLock()
+  if (!ownsLock) return waitForDaemon()
+  try {
+    const current = await readSession()
+    if (current && await isAlive(current)) return current
+    if (current) await unlink(sessionPath).catch(() => {})
+    const daemonArgs = [fileURLToPath(import.meta.url), 'daemon', Number.isFinite(idleTimeout) ? '--idle-timeout' : '--no-idle-timeout']
+    if (Number.isFinite(idleTimeout)) daemonArgs.push(String(idleTimeout))
+    const child = spawn(process.execPath, daemonArgs, { detached: true, stdio: 'ignore' })
+    child.unref()
+    return waitForDaemon()
+  } finally {
+    await unlink(launchLockPath).catch(() => {})
+  }
+}
+
+async function waitForDaemon() {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const session = await readSession()
     if (session && await isAlive(session)) return session
     await new Promise((resolve) => setTimeout(resolve, 50))
   }
   throw new Error('无法启动 Folio daemon。')
+}
+
+async function acquireLaunchLock() {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      await writeFile(launchLockPath, String(process.pid), { flag: 'wx' })
+      return true
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error
+      try {
+        const owner = Number(await readFile(launchLockPath, 'utf8'))
+        if (!Number.isInteger(owner) || owner <= 0) throw Object.assign(new Error('Invalid lock owner'), { code: 'EINVAL' })
+        process.kill(owner, 0)
+      } catch (ownerError) {
+        if (ownerError?.code === 'ESRCH' || ownerError?.code === 'ENOENT' || ownerError?.code === 'EINVAL') await unlink(launchLockPath).catch(() => {})
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+  }
+  throw new Error('无法获取 Folio daemon 启动锁。')
 }
 
 async function readSession() {

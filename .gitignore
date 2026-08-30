@@ -1,2 +1,6 @@
 node_modules/
 dist/
+release/
+README*.html
+README*.pdf
+.DS_Store

@@ -1,8 +1,9 @@
 import { createServer } from 'node:http'
 import { access, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { render, renderWeChat } from './src/render.js'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { render } from './src/render.js'
+import { writePdf } from './pdf-export.js'
 import { createTemplateStore } from './template-store.js'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
@@ -10,14 +11,11 @@ const dist = path.join(root, 'dist')
 const templates = createTemplateStore(path.join(root, 'templates'))
 const mimeTypes = { '.css': 'text/css', '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml' }
 
-export async function createFolioServer(filePath, { idleTimeout = 30 * 60 * 1000, onIdle } = {}) {
+export async function createFolioServer({ idleTimeout = 30 * 60 * 1000, onIdle, pdfWriter = writePdf } = {}) {
   await access(path.join(dist, 'index.html'))
   const documents = new Map()
   const clients = new Map()
-  let defaultDocumentId = null
   let lastCliActivityAt = Date.now()
-
-  if (filePath) defaultDocumentId = (await openDocument(filePath)).documentId
 
   const server = createServer(async (request, response) => {
     try {
@@ -37,12 +35,11 @@ export async function createFolioServer(filePath, { idleTimeout = 30 * 60 * 1000
         return sendJson(response, 200, { ...documentInfo(document), markdown: document.markdown })
       }
       if (url.pathname === '/api/document' && request.method === 'PUT') {
-        const { markdown: nextMarkdown } = await readJson(request)
-        if (typeof nextMarkdown !== 'string') return sendJson(response, 400, { error: 'markdown must be a string' })
+        const { markdown: nextMarkdown, version } = await readJson(request)
+        if (typeof nextMarkdown !== 'string' || (version !== undefined && !Number.isInteger(version))) return sendJson(response, 400, { error: 'markdown must be a string and version must be an integer when provided' })
         const document = getDocument(url.searchParams.get('document'))
-        await writeFile(document.path, nextMarkdown, 'utf8')
-        document.markdown = nextMarkdown
-        return sendJson(response, 200, { ok: true })
+        const nextVersion = await saveDocument(document, nextMarkdown, version)
+        return sendJson(response, 200, { ok: true, version: nextVersion })
       }
       if (url.pathname === '/api/clients' && request.method === 'POST') {
         const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -68,14 +65,23 @@ export async function createFolioServer(filePath, { idleTimeout = 30 * 60 * 1000
       }
       if (url.pathname === '/api/export' && request.method === 'POST') {
         const { markdown: source, templateId, revision, documentId } = await readJson(request)
-        if (typeof source !== 'string' || typeof templateId !== 'string' || typeof revision !== 'string') return sendJson(response, 400, { error: 'markdown, templateId and revision must be strings' })
+        if (typeof source !== 'string' || typeof templateId !== 'string' || typeof revision !== 'string' || typeof documentId !== 'string') return sendJson(response, 400, { error: 'markdown, templateId, revision and documentId must be strings' })
         const template = await templates.read(templateId, revision)
         const document = getDocument(documentId)
-        const exportPath = template.target === 'wechat'
-          ? path.join(path.dirname(document.path), `${path.basename(document.path, path.extname(document.path))}.wechat.html`)
-          : document.exportPath
-        await writeFile(exportPath, template.target === 'wechat' ? renderWeChat(source, template.css) : render(source, template.css), 'utf8')
+        const exportPath = stampedExportPath(document, '.html')
+        await writeFile(exportPath, render(source, template.css), 'utf8')
         return sendJson(response, 200, { path: exportPath })
+      }
+      if (url.pathname === '/api/export-pdf' && request.method === 'POST') {
+        const { markdown: source, templateId, revision, documentId } = await readJson(request)
+        if (typeof source !== 'string' || typeof templateId !== 'string' || typeof revision !== 'string' || typeof documentId !== 'string') return sendJson(response, 400, { error: 'markdown, templateId, revision and documentId must be strings' })
+        const template = await templates.read(templateId, revision)
+        const document = getDocument(documentId)
+        const baseHref = pathToFileURL(`${path.dirname(document.path)}${path.sep}`).href
+        const html = render(source, template.css, { baseHref, print: true })
+        const pdfPath = stampedExportPath(document, '.pdf')
+        await pdfWriter(html, pdfPath)
+        return sendJson(response, 200, { path: pdfPath })
       }
       if (url.pathname.startsWith('/api/assets/') && request.method === 'GET') {
         const [, , , documentId, ...parts] = url.pathname.split('/')
@@ -97,7 +103,7 @@ export async function createFolioServer(filePath, { idleTimeout = 30 * 60 * 1000
   idleTimer.unref?.()
   server.once('close', () => clearInterval(idleTimer))
 
-  return { server, openDocument, documents }
+  return { server }
 
   async function openDocument(requestedPath) {
     const documentPath = path.resolve(requestedPath)
@@ -107,14 +113,13 @@ export async function createFolioServer(filePath, { idleTimeout = 30 * 60 * 1000
     const existing = [...documents.values()].find((document) => document.path === documentPath)
     if (existing) return documentInfo(existing)
     const id = `${documents.size.toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-    const document = { id, path: documentPath, markdown: await readFile(documentPath, 'utf8'), exportPath: path.join(path.dirname(documentPath), `${path.basename(documentPath, path.extname(documentPath))}.html`) }
+    const document = { id, path: documentPath, markdown: await readFile(documentPath, 'utf8'), version: 0, saveQueue: Promise.resolve() }
     documents.set(id, document)
-    defaultDocumentId ??= id
     return documentInfo(document)
   }
 
   function getDocument(id) {
-    const document = documents.get(id || defaultDocumentId)
+    const document = documents.get(id)
     if (!document) {
       const error = new Error('No Markdown document is open.')
       error.statusCode = 404
@@ -122,10 +127,31 @@ export async function createFolioServer(filePath, { idleTimeout = 30 * 60 * 1000
     }
     return document
   }
+
+  function saveDocument(document, markdown, version) {
+    const operation = document.saveQueue.catch(() => {}).then(async () => {
+      if (Number.isInteger(version) && document.version !== version) {
+        const error = new Error('Document changed. Reload before saving.')
+        error.statusCode = 409
+        throw error
+      }
+      await writeFile(document.path, markdown, 'utf8')
+      document.markdown = markdown
+      document.version += 1
+      return document.version
+    })
+    document.saveQueue = operation
+    return operation
+  }
 }
 
 function documentInfo(document) {
-  return { documentId: document.id, name: path.basename(document.path), exportPath: document.exportPath }
+  return { documentId: document.id, name: path.basename(document.path), path: document.path, version: document.version }
+}
+
+function stampedExportPath(document, suffix) {
+  const stamp = new Date().toISOString().replace(/[-:]/gu, '').replace('T', '-').slice(0, suffix === '.pdf' ? 15 : 13)
+  return path.join(path.dirname(document.path), `${path.basename(document.path, path.extname(document.path))}-${stamp}${suffix}`)
 }
 
 async function readJson(request) {

@@ -1,0 +1,19 @@
+:root { color: #353a42; background: #f7f9fc; }
+@page { size: A4; margin: 0; }
+body { margin: 0; font: 11.5pt/1.9 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.folio-document { position: relative; max-width: 210mm; min-height: 297mm; margin: 12mm auto; padding: 12mm 20mm; background: #fff; box-shadow: 0 0 4mm #dae3eac9; }
+h1,h2 { font-family: inherit; }
+h1 { margin: 0; color: #353a42; font-size: 19pt; line-height: 1.5; }
+h2 { margin: 2.4mm 0 2mm; padding: 1mm 0; border-bottom: 1px solid #4870ac; color: #4870ac; font-size: 12.5pt; line-height: 1; }
+h3,h4,h5,h6 { margin: 0; font-size: 9pt; }
+p { margin: 0; }
+blockquote { margin: 0; padding: 0; border: 0; color: inherit; }
+ul,ol { margin: 0; padding-inline: 3mm 1mm; }
+ol { padding-inline-start: 5mm; }
+li { padding-left: 1.5mm; }
+li::marker { font-weight: 700; }
+a { color: #4c91da; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-decoration: none; }
+img { max-width: 100%; height: auto; }
+img[alt="avatar"] { position: absolute; top: 10mm; right: 20mm; z-index: 1; width: 31mm; height: 31mm; object-fit: contain; }
+p:has(> img[alt="avatar"]) { height: 0; }
+@media print { .folio-document { max-width: none; min-height: 0; margin: 0; padding: 12mm 14mm; box-shadow: none; } }
