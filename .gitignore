@@ -4,3 +4,8 @@ release/
 README*.html
 README*.pdf
 .DS_Store
+.vite/
+*.log
+.env*
+*.tmp
+*.swp
