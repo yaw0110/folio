@@ -14,7 +14,9 @@ npm run build
 npm link
 ```
 
-CLI 默认以 Preview 模式打开一个或多个 `.md` 文件；多个文件会在浏览器中分别打开 Tab，但复用同一个 Folio daemon。保存会覆写对应 Markdown；导出会将最新 Preview 写为同目录、同文件名的 `.html`。
+macOS 用户也可以直接双击项目里的 `start.command` 一键启动；首次运行会自动安装依赖并构建，未传入文件时默认打开 `README.md`。之后无需再手动执行 npm 命令。
+
+CLI 默认以 Preview 模式打开一个或多个 `.md` 文件；多个文件会在浏览器中分别打开 Tab，但复用同一个 Folio daemon。保存会覆写对应 Markdown；导出会将最新 Preview 写为同目录、带时间后缀的 `.html` / `.pdf`。
 
 ```sh
 folio "$PWD/README.md"                    # 默认 Preview
@@ -29,6 +31,28 @@ folio stop                                  # 停止 daemon
 
 CLI、daemon、多文档和自动退出方案见 [`docs/folio-cli-daemon.md`](./docs/folio-cli-daemon.md)；系统分层见 [`docs/architecture.md`](./docs/architecture.md)。
 
+## 开发者模式与终端用户模式
+
+开发者模式继续使用 Node.js/npm：
+
+```sh
+npm ci
+npm run dev
+node bin/folio.js article.md
+```
+
+终端用户模式由 Electron 打包，使用安装包即可，不需要预先安装 Node.js、npm 或 Chrome：
+
+```sh
+npm run dist:win
+# macOS
+npm run dist:mac
+# macOS 一键安装包
+npm run dist:mac:pkg
+```
+
+安装包输出到 `release/`；Windows 安装后可直接双击 `.md` 文件打开 Folio。macOS 的 `.dmg` 需要拖入 Applications，`.pkg` 可双击后按安装向导一键安装。
+
 ## 产品定位
 
 Folio 的内容源只有 Markdown：模板、预览和导出物都由同一份 Markdown 派生。产品先把 Markdown 稳定地制作成可阅读、可交付的成品，再考虑 AI 协作；它不是通用富文本编辑器、笔记应用或自动代写工具。
@@ -42,15 +66,14 @@ folio article-a.md article-b.md
   → 默认进入 Preview
   → 选择内置 CSS 模板
   → 可切换 Workspace 编辑 Markdown
-  → 导出 HTML（首发）
-  → 导出 PDF / 图片（后续）
+  → 导出 HTML / PDF
 ```
 
 终端命令打开指定文件；用户在工作台编辑 Markdown、选择模板并预览，确认后保存原文件并导出成品。
 
 - Markdown 是唯一内容源；CSS 只属于 Template。
 - Preview 和 Export 必须来自同一次确定性 Render。
-- PDF、图片、Platform Delivery 和 Agent 是后续旁路，不阻塞 HTML 首发闭环。
+- 图片、Platform Delivery 和 Agent 是后续旁路，不阻塞 HTML/PDF 闭环。
 
 ## 产品范围
 
@@ -59,13 +82,14 @@ folio article-a.md article-b.md
 - 终端启动命令，直接打开一个或多个 Markdown 文件。
 - 多个 Markdown Tab 复用同一个后台 daemon 进程。
 - 网页工作台中的 Markdown 编辑与预览，以及仅预览模式。
-- 模板存放在项目的 `templates/<id>/template.css`；内置模板可在该目录直接维护。当前提供十套独立 HTML 模板，以及三套公众号内联样式模板：翠绿清单、朱红观点和石墨长文。选择公众号模板会导出同目录的 `article.wechat.html`，可直接复制 HTML 片段到公众号编辑器。
+- 模板存放在项目的 `templates/<id>/template.css`；当前保留三套普通样式：「检票单」「翠绿清单」「朱砂长文」。
 - 从 Markdown 与模板导出 HTML。
+- 从 Markdown 与模板导出 PDF（开发者 CLI 使用系统 Chrome；Electron 安装包使用内置 Chromium）。
 - 本地打开与保存原 Markdown 文件。
 
 ### 后续范围
 
-- PDF、图片及特定图文平台的交付文件。
+- 图片及特定图文平台的交付文件。
 - 可选的 AI 插件：协助迭代 Markdown 或模板 CSS。
 
 ### 暂不包含
@@ -153,20 +177,20 @@ UI 原型采用 B 方案（深色沉浸式编辑区 + 右侧成品预览与快�
 | Module | Interface（最小） | 负责 | 不负责 |
 |---|---|---|---|
 | Launcher | `start(filePaths, options)` | 校验 CLI 参数、启动或复用 daemon、打开浏览器 Tab | Markdown 解析、UI 状态 |
-| Document Store | `open(filePath)` / `save(documentId, markdown)` | 管理多个文档会话，读取与保存对应 Markdown 文件 | 模板 CSS、渲染 |
+| Document Store | `open(filePath)` / `save(documentId, markdown[, version])` | 管理多个文档会话，读取与保存对应 Markdown 文件 | 模板 CSS、渲染 |
 | Template | `list()` / `read(id, revision?)` | 从项目内 `templates/` 提供模板元数据与 CSS | 文章内容、HTML 生成 |
 | Render | `render(markdown, css)` | 确定性地生成 Preview/Export 共用的 HTML | 文件读写、Vue 状态 |
-| Workbench | `reduce(state, action) → state` | Vue 3 + Vite 的交互、脏状态和版本提示 | 直接操作文件系统、再次解析 Markdown |
+| Workbench | 当前 Tab 的编辑/预览状态 | Vue 3 + Vite 的交互、脏状态和版本提示 | 直接操作文件系统、再次解析 Markdown |
 
 ### Module Interface 契约
 
 - `Launcher`：任一 `filePath` 不存在或不可读时返回可见错误，不为该路径打开空白工作台；daemon 启动或复用成功后才打开浏览器 Tab。
-- `Document Store`：`open(filePath)` 建立或复用文档会话；`save(documentId, markdown)` 只写回对应文件。写入失败不得丢失该 Tab 内存中的 Markdown。
+- `Document Store`：`open(filePath)` 建立或复用文档会话；默认保存直接覆盖对应文件，调用方提供 `version` 时才执行冲突检查。版本冲突或写入失败不得丢失该 Tab 内存中的 Markdown。
 - `Template`：模板 `id` 来自 `templates/<id>/`；选择模板只改变 Render 使用的 CSS，不得改变 Markdown。CSS 内容的 SHA-256 是 revision；导出必须使用预览时读取的同一 revision。
 - `Render`：纯函数；相同 Markdown 与 CSS 必须产生相同 HTML。解析失败抛出可展示错误，不能由 Workbench 重复解析。
-- `Workbench`：`reduce` 不执行文件读写或浏览器下载；未打开文件不能 `preview/save/export`，内容或 CSS 变化后必须先产生新的 Preview 才能 Export。
+- `Workbench`：未打开文件不能 `preview/save/export`，内容或 CSS 变化后必须先产生新的 Preview 才能 Export。
 
-`Export` 先复用 `Render` 的结果，由 Workbench 触发写入 Markdown 同目录的 HTML；PDF、图片和 `Platform Delivery` 出现第二种真实实现后再引入 Adapter。
+`Export` 复用 `Render` 的结果，由 Workbench 触发写入 Markdown 同目录的 HTML 或 PDF；图片和 `Platform Delivery` 出现第二种真实实现后再引入 Adapter。
 
 ## 功能拆解
 
@@ -177,7 +201,7 @@ UI 原型采用 B 方案（深色沉浸式编辑区 + 右侧成品预览与快�
 3. Markdown 基础渲染：标题、段落、强调、列表、引用、代码和图片，预览可实时更新。
 4. B 方案工作台：左侧 Markdown 编辑，右侧成品预览；预览宽度可切换。
 5. Template：内置少量 CSS 模板，支持下拉选择；模板 CSS 与元数据位于项目内 `templates/<id>/`，修改后刷新读取；模板修改使旧预览失效。
-6. `Export`：仅允许导出最新 `Preview` 版本，首发生成同目录的单个 HTML 文件。
+6. `Export`：仅允许导出最新 `Preview` 版本，生成同目录的 HTML 或 PDF 文件。
 
 ### P1：模板与内容可靠性
 
@@ -188,7 +212,7 @@ UI 原型采用 B 方案（深色沉浸式编辑区 + 右侧成品预览与快�
 
 ### P2：交付旁路
 
-- PDF、图片导出及其质量验证。
+- 图片导出及其质量验证。
 - 首批图文平台的约束检查与 Platform Delivery。
 - Agent 插件：在用户确认后修改 Markdown 或 Template CSS。
 

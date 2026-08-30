@@ -38,15 +38,15 @@ folio --no-idle-timeout article.md
 │ CLI client                   │
 │ 参数解析、daemon 握手、开 Tab │
 └──────────────┬───────────────┘
-               │ session.json: pid/port/token
+               │ session.json: pid/port/idleTimeout
                ▼
 ┌─────────────────────────────────────┐
 │ Folio daemon（一个 Node.js 进程）    │
 │                                     │
 │ HTTP API                            │
 │  /api/documents                     │
-│  /api/documents/:id                 │
-│  /api/documents/:id/export          │
+│  /api/document?document=<id>        │
+│  /api/export (documentId in body)   │
 │  /api/assets/:id/*                  │
 │                                     │
 │ Document sessions: A, B, ...        │
@@ -72,16 +72,16 @@ documents = Map<documentId, {
   id,
   path,
   markdown,
-  exportPath
+  version
 }>
 ```
 
-路径在注册时规范化并校验：必须存在、可读、是普通 `.md` 文件。模板仍然由现有 `template-store` 管理。
+路径在注册时规范化并校验：必须存在、可读、是普通 `.md` 文件。保存默认覆盖原文件；调用方携带读取时的 `version` 才执行冲突检查，版本不匹配返回 409。模板仍然由现有 `template-store` 管理。
 
 ## CLI 与 daemon 生命周期
 
 1. CLI 读取临时目录中的 `session.json`。
-2. session 有效则复用 daemon；无效则清理后启动新 daemon。
+2. session 有效则复用 daemon；无效时先取得同一用户的启动锁，再清理并启动新 daemon，避免并发 CLI 重复拉起进程。
 3. daemon 注册每个 Markdown 并返回 `documentId`。
 4. CLI 为每个新文档打开一个浏览器 Tab；首次启动才需要启动浏览器会话。
 5. `folio stop` 请求 daemon 优雅退出并删除 session 文件。
