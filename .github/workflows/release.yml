@@ -60,4 +60,12 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" release/* --verify-tag --generate-notes --title "Folio $GITHUB_REF_NAME"
+        run: |
+          mapfile -d '' assets < <(find release -type f \( \
+            -name '*.dmg' -o -name '*.pkg' -o -name '*.exe' -o -name '*.msi' \
+            -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \
+            -o -name '*.rpm' -o -name '*.tar.gz' \
+          \) -print0)
+          ((${#assets[@]})) || { echo 'No installable release assets found'; exit 1; }
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" "${assets[@]}" \
+            --verify-tag --generate-notes --title "Folio $GITHUB_REF_NAME"
