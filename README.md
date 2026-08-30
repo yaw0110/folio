@@ -107,6 +107,8 @@ npm test
 
 终端用户不需要预装 Node.js、npm 或 Chrome：
 
+最新安装包直接下载：[GitHub Releases](https://github.com/yaw0110/folio/releases)。
+
 ```sh
 npm run dist:win
 npm run dist:mac
@@ -114,6 +116,13 @@ npm run dist:mac:pkg
 ```
 
 产物写入 `release/`。macOS 也可以双击项目内的 `start.command` 启动开发版。
+
+维护者推送 `v*` 标签后，GitHub Actions 会自动测试、构建 macOS/Windows 安装包并创建 Release：
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 ## 期望与边界
 
