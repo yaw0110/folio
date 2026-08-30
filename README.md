@@ -12,13 +12,13 @@ Folio 面向需要把 Markdown 变成稳定成品的个人作者。它不接管�
 npm ci
 npm run build
 npm link
-folio README.md
+mdp README.md
 ```
 
 打开后默认进入 Preview。需要编辑时：
 
 ```sh
-folio --workspace article.md
+mdp --workspace article.md
 ```
 
 在工作台中选择 Template、编辑 Markdown、保存，再点击导出 HTML 或 PDF。
@@ -43,7 +43,7 @@ Markdown → Template → Render → Preview → Export
 
 ## 功能
 
-- 从终端打开一个或多个 `.md` 文件：`folio a.md b.md`。
+- 从终端打开一个或多个 `.md` 文件：`mdp a.md b.md`。
 - 多个文件复用同一个 daemon，每个文档保持独立状态。
 - Preview 默认优先；`--workspace` 显式进入编辑模式。
 - 从项目内 `templates/<id>/` 选择可复用的 CSS Template。
@@ -54,13 +54,13 @@ Markdown → Template → Render → Preview → Export
 常用命令：
 
 ```sh
-folio article.md                         # Preview
-folio --workspace article.md             # 编辑
-folio article-a.md article-b.md          # 多文档
-folio --idle-timeout 15m article.md      # 自定义空闲退出
-folio --no-idle-timeout article.md       # 不自动退出
-folio status                             # 查看 daemon
-folio stop                               # 停止 daemon
+mdp article.md                         # Preview
+mdp --workspace article.md             # 编辑
+mdp article-a.md article-b.md          # 多文档
+mdp --idle-timeout 15m article.md      # 自定义空闲退出
+mdp --no-idle-timeout article.md       # 不自动退出
+mdp status                             # 查看 daemon
+mdp stop                               # 停止 daemon
 ```
 
 ## 架构

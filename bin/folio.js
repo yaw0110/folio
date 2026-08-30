@@ -165,7 +165,7 @@ function parseDuration(value) {
 }
 
 function usage() {
-  console.error('Usage: folio [--preview|--workspace] [--idle-timeout 30m] <file.md> [...file.md]')
+  console.error('Usage: mdp [--preview|--workspace] [--idle-timeout 30m] <file.md> [...file.md]')
   process.exitCode = 1
 }
 

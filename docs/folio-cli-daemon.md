@@ -2,7 +2,7 @@
 
 ## 目标
 
-- 用一个 `folio` CLI 直接打开 Markdown。
+- 用一个 `mdp` CLI 直接打开 Markdown。
 - 默认使用 `preview` 模式，也支持 `--workspace` 编辑模式。
 - 多个 Markdown 可以同时打开。
 - 多次执行 CLI 复用同一个 Folio daemon 进程。
@@ -11,14 +11,14 @@
 ## 用户命令
 
 ```sh
-folio article-a.md
-folio article-a.md article-b.md
-folio --preview article.md
-folio --workspace article.md
-folio status
-folio stop
-folio --idle-timeout 30m article.md
-folio --no-idle-timeout article.md
+mdp article-a.md
+mdp article-a.md article-b.md
+mdp --preview article.md
+mdp --workspace article.md
+mdp status
+mdp stop
+mdp --idle-timeout 30m article.md
+mdp --no-idle-timeout article.md
 ```
 
 默认值：`preview` 模式、30 分钟空闲退出。
@@ -30,8 +30,8 @@ folio --no-idle-timeout article.md
 ```text
 ┌──────────────────────────────┐
 │ 用户终端                     │
-│ folio a.md b.md              │
-│ folio --workspace a.md       │
+│ mdp a.md b.md                │
+│ mdp --workspace a.md         │
 └──────────────┬───────────────┘
                ▼
 ┌──────────────────────────────┐
@@ -84,7 +84,7 @@ documents = Map<documentId, {
 2. session 有效则复用 daemon；无效时先取得同一用户的启动锁，再清理并启动新 daemon，避免并发 CLI 重复拉起进程。
 3. daemon 注册每个 Markdown 并返回 `documentId`。
 4. CLI 为每个新文档打开一个浏览器 Tab；首次启动才需要启动浏览器会话。
-5. `folio stop` 请求 daemon 优雅退出并删除 session 文件。
+5. `mdp stop` 请求 daemon 优雅退出并删除 session 文件。
 
 当前 session 文件包含：`pid`、`port`、`idleTimeout`。daemon 只绑定 `127.0.0.1`，暂未实现 token 鉴权，因此该文件不是跨用户安全边界。
 
