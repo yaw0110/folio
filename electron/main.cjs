@@ -4,6 +4,10 @@ const path = require('node:path')
 
 let folioServer
 let folioPort
+let initialized = false
+let openQueue = Promise.resolve()
+const pendingFilePaths = []
+const windows = new Set()
 
 function markdownArgument() {
   return process.argv.slice(1).find((value) => value.toLowerCase().endsWith('.md'))
@@ -55,16 +59,35 @@ async function createWindow(filePath) {
       nodeIntegration: false
     }
   })
+  windows.add(window)
+  window.once('closed', () => windows.delete(window))
   await window.loadURL(`http://127.0.0.1:${folioPort}/?document=${encodeURIComponent(documentId)}&mode=workspace`)
 }
+
+function showError(error) {
+  return dialog.showMessageBox({ type: 'error', title: 'Folio', message: error instanceof Error ? error.message : String(error) })
+}
+
+function enqueueOpen(filePath) {
+  openQueue = openQueue.then(() => createWindow(filePath)).catch(showError)
+}
+
+app.on('open-file', (event, filePath) => {
+  event.preventDefault()
+  if (!folioPort || !initialized) pendingFilePaths.push(filePath)
+  else enqueueOpen(filePath)
+})
 
 app.whenReady().then(async () => {
   try {
     await startServer()
-    const filePath = markdownArgument() ?? path.join(__dirname, '..', 'README.md')
-    await createWindow(filePath)
+    const filePaths = pendingFilePaths.splice(0)
+    if (!filePaths.length) filePaths.push(markdownArgument() ?? path.join(__dirname, '..', 'README.md'))
+    for (const filePath of filePaths) await createWindow(filePath)
+    initialized = true
+    for (const filePath of pendingFilePaths.splice(0)) enqueueOpen(filePath)
   } catch (error) {
-    await dialog.showMessageBox({ type: 'error', title: 'Folio', message: error instanceof Error ? error.message : String(error) })
+    await showError(error)
     app.quit()
   }
 })
